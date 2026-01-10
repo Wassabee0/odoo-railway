@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Variables de Railway PostgreSQL
-DB_HOST=${PGHOST:-localhost}
+# Variables de Railway PostgreSQL (CORREGIDO)
+DB_HOST=${PGHOST:-postgresql.railway.internal}
 DB_PORT=${PGPORT:-5432}
 DB_SUPERUSER=${PGUSER:-postgres}
 DB_SUPERPASS=${PGPASSWORD:-postgres}
@@ -15,11 +15,23 @@ ODOO_DB_PASSWORD=${ODOO_DB_PASSWORD:-odoo_secure_123}
 PORT=${PORT:-8069}
 
 echo "========================================"
+echo "Esperando PostgreSQL..."
+echo "========================================"
+
+# ESPERA A POSTGRESQL (FIX #1)
+export PGPASSWORD="$DB_SUPERPASS"
+until PGPASSWORD="$DB_SUPERPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_SUPERUSER" -d "postgres" -c '\q' 2>/dev/null; do
+  >&2 echo "PostgreSQL no está listo - esperando..."
+  sleep 2
+done
+
+echo "PostgreSQL listo ✅"
+
+echo "========================================"
 echo "Configurando usuario de base de datos..."
 echo "========================================"
 
 # Crear usuario odoo si no existe
-export PGPASSWORD="$DB_SUPERPASS"
 psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_SUPERUSER" -d "postgres" <<-EOSQL || true
     DO \$\$
     BEGIN
@@ -30,15 +42,18 @@ psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_SUPERUSER" -d "postgres" <<-EOSQL || tr
     \$\$;
 EOSQL
 
+# Crear base de datos
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_SUPERUSER" -d "postgres" -c "CREATE DATABASE \"$ODOO_DATABASE\" OWNER \"$ODOO_DB_USER\";" || true
+
 # Construir addons-path solo con directorios válidos
 ADDONS_PATH="/usr/lib/python3/dist-packages/odoo/addons"
 
 # Solo añadir extra-addons si contiene módulos válidos (carpetas con __manifest__.py)
 if find /mnt/extra-addons -maxdepth 2 -name "__manifest__.py" 2>/dev/null | grep -q .; then
     ADDONS_PATH="/mnt/extra-addons,$ADDONS_PATH"
-    echo "Modulos custom encontrados en /mnt/extra-addons"
+    echo "Módulos custom encontrados en /mnt/extra-addons"
 else
-    echo "No hay modulos custom (o carpeta vacia)"
+    echo "No hay módulos custom (o carpeta vacía)"
 fi
 
 echo "========================================"
@@ -46,13 +61,14 @@ echo "Iniciando Odoo en puerto $PORT"
 echo "Addons path: $ADDONS_PATH"
 echo "========================================"
 
-# Ejecutar Odoo
+# Ejecutar Odoo (FIX #2: --admin_passwd fijo)
 exec su odoo -s /bin/bash -c "odoo \
     --db_host=$DB_HOST \
     --db_port=$DB_PORT \
     --db_user=$ODOO_DB_USER \
     --db_password=$ODOO_DB_PASSWORD \
     --http-port=$PORT \
+    --admin_passwd=$ODOO_ADMIN_PASSWORD \
     --proxy-mode \
     --workers=${ODOO_WORKERS:-1} \
     --without-demo=True \
@@ -60,6 +76,5 @@ exec su odoo -s /bin/bash -c "odoo \
     --limit-memory-soft=268435456 \
     --limit-memory-hard=402653184 \
     --addons-path=$ADDONS_PATH \
-    ${ODOO_DATABASE:+--database=$ODOO_DATABASE} \
-    ${ODOO_ADMIN_PASSWORD:+--admin_passwd=$ODOO_ADMIN_PASSWORD}"
+    --database=$ODOO_DATABASE"
 
