@@ -19,4 +19,4 @@ RUN chmod +x /entrypoint-custom.sh
 
 EXPOSE 8069
 
-ENTRYPOINT ["/entrypoint-custom.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
