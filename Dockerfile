@@ -7,8 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar módulos custom (si los hay)
-COPY --chown=odoo:odoo custom_addons /mnt/extra-addons
+# Crear carpeta para módulos custom
+RUN mkdir -p /mnt/extra-addons && chown odoo:odoo /mnt/extra-addons
+
+# Copiar módulos custom si existen (ignorar si carpeta vacía)
+COPY --chown=odoo:odoo custom_addons/ /mnt/extra-addons/
 
 # Copiar entrypoint personalizado
 COPY entrypoint.sh /entrypoint-custom.sh
