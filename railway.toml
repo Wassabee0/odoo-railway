@@ -5,3 +5,7 @@ dockerfilePath = "Dockerfile"
 [deploy]
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+# FIX 502: Puerto público
+[deploy.port]
+port = 8080
