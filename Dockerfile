@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Crear carpeta para módulos custom
 RUN mkdir -p /mnt/extra-addons && chown odoo:odoo /mnt/extra-addons
 
-# Copiar módulos custom si existen (ignorar si carpeta vacía)
+# Copiar módulos custom si existen
 COPY --chown=odoo:odoo custom_addons/ /mnt/extra-addons/
 
-# Copiar entrypoint personalizado
-COPY entrypoint.sh /entrypoint-custom.sh
-RUN chmod +x /entrypoint-custom.sh
+# Copiar entrypoint personalizado (CAMBIADO)
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-EXPOSE 8069
+EXPOSE 8080
 
 ENTRYPOINT ["/entrypoint.sh"]
